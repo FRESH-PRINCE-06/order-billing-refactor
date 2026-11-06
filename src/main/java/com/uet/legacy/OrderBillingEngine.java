@@ -1,4 +1,6 @@
 package com.uet.legacy;
+import com.uet.legacy.pricing.DiscountCalculator;
+import com.uet.legacy.pricing.TaxCalculator;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -53,46 +55,14 @@ public class OrderBillingEngine {
             }
             rawTotal += price * quantity;
         }
-
-        double discount = 0.0;
         String customerType = (String) orderData.getOrDefault("customerType", "REGULAR");
-
-        // Hardcoded discount rules with magic percentages
-        if (customerType.equals("VIP")) {
-            if (rawTotal > 5000) {
-                discount = rawTotal * 0.15; // 15% discount for VIP over 5000
-            } else {
-                discount = rawTotal * 0.10; // 10% discount for VIP under 5000
-            }
-        } else if (customerType.equals("STUDENT")) {
-            discount = rawTotal * 0.08; // 8% student discount
-        } else if (customerType.equals("CORPORATE")) {
-            if (items.size() >= 10) {
-                discount = rawTotal * 0.20; // 20% bulk corporate discount
-            } else {
-                discount = rawTotal * 0.05; // 5% standard corporate discount
-            }
-        } else {
-            if (rawTotal > 10000) {
-                discount = 500.0; // Flat discount for large regular orders
-            }
-        }
-
+        double discount = new DiscountCalculator().calculate(customerType, rawTotal, items.size());
         double netAmount = rawTotal - discount;
 
-        // Hardcoded Tax Rules by Country
         String country = (String) orderData.getOrDefault("country", "PK");
-        double taxRate = 0.15;
-        if (country.equals("PK")) {
-            taxRate = 0.17;
-        } else if (country.equals("US")) {
-            taxRate = 0.08;
-        } else if (country.equals("UK")) {
-            taxRate = 0.20;
-        }
-
-        double tax = netAmount * taxRate;
+        double tax = new TaxCalculator().calculate(netAmount, country);
         double payableAmount = netAmount + tax;
+        
 
         // 3. Payment Processing (Violates Open/Closed Principle)
         String paymentMethod = (String) orderData.getOrDefault("paymentMethod", "CASH");
