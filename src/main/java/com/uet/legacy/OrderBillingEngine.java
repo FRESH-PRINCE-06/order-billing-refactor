@@ -9,10 +9,9 @@ import com.uet.legacy.payment.PaymentException;
 import com.uet.legacy.payment.PaymentStrategy;
 import com.uet.legacy.pricing.DiscountCalculator;
 import com.uet.legacy.pricing.TaxCalculator;
+import com.uet.legacy.repository.FileOrderRepository;
+import com.uet.legacy.repository.OrderRepository;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +27,7 @@ public class OrderBillingEngine {
 
     // Bad Practice 1: Hardcoded file paths and direct file manipulation
     private String logFilePath = "order_audit.log";
+        private OrderRepository repository = new FileOrderRepository(logFilePath);
         private final Map<String, PaymentStrategy> paymentStrategies = new HashMap<>();
             private final Map<String, NotificationService> notificationServices = new HashMap<>();
 
@@ -104,13 +104,7 @@ public class OrderBillingEngine {
             return false;
         }
 
-        // 4. Direct File Saving (Side-effect inside business logic)
-        try (FileWriter writer = new FileWriter(logFilePath, true)) {
-            writer.write(LocalDateTime.now() + " | Order for: " + email + " | Payable: PKR " 
-                         + payableAmount + " | Status: " + paymentStatus + "\n");
-        } catch (IOException e) {
-            System.out.println("Failed to write order log: " + e.getMessage());
-        }
+                repository.save(email, payableAmount, paymentStatus);
 
            String notifyChannel = (String) orderData.getOrDefault("notifyChannel", "EMAIL");
         NotificationService notifier = notificationServices.get(notifyChannel);
@@ -123,6 +117,7 @@ public class OrderBillingEngine {
     // Helper getter/setter for testing file path redirection
     public void setLogFilePath(String logFilePath) {
         this.logFilePath = logFilePath;
+        this.repository = new FileOrderRepository(logFilePath);
     }
 
     public String getLogFilePath() {
