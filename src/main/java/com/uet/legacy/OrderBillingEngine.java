@@ -1,4 +1,7 @@
 package com.uet.legacy;
+import com.uet.legacy.notification.EmailNotification;
+import com.uet.legacy.notification.NotificationService;
+import com.uet.legacy.notification.SmsNotification;
 import com.uet.legacy.payment.CashOnDeliveryPayment;
 import com.uet.legacy.payment.CreditCardPayment;
 import com.uet.legacy.payment.EasyPaisaPayment;
@@ -26,15 +29,21 @@ public class OrderBillingEngine {
     // Bad Practice 1: Hardcoded file paths and direct file manipulation
     private String logFilePath = "order_audit.log";
         private final Map<String, PaymentStrategy> paymentStrategies = new HashMap<>();
+            private final Map<String, NotificationService> notificationServices = new HashMap<>();
 
     public OrderBillingEngine() {
         paymentStrategies.put("CREDIT_CARD", new CreditCardPayment());
         paymentStrategies.put("EASYPAISA", new EasyPaisaPayment());
         paymentStrategies.put("CASH_ON_DELIVERY", new CashOnDeliveryPayment());
+                notificationServices.put("EMAIL", new EmailNotification());
+        notificationServices.put("SMS", new SmsNotification());
     }
 
     public void registerPaymentStrategy(String name, PaymentStrategy strategy) {
         paymentStrategies.put(name, strategy);
+    }
+        public void registerNotificationService(String channel, NotificationService service) {
+        notificationServices.put(channel, service);
     }
 
     public boolean processOrder(Map<String, Object> orderData) {
@@ -103,17 +112,11 @@ public class OrderBillingEngine {
             System.out.println("Failed to write order log: " + e.getMessage());
         }
 
-        // 5. Direct Notification Dispatch (Coupled side-effect)
-        String notifyChannel = (String) orderData.getOrDefault("notifyChannel", "EMAIL");
-        if (notifyChannel.equals("EMAIL")) {
-            System.out.println("[EMAIL DISPATCHED] To: " + email + " | Your order of PKR " 
-                               + String.format("%.2f", payableAmount) + " is confirmed!");
-        } else if (notifyChannel.equals("SMS")) {
-            String phone = (String) orderData.getOrDefault("phone", "0300-0000000");
-            System.out.println("[SMS DISPATCHED] To: " + phone + " | Order confirmed! Paid: PKR " 
-                               + String.format("%.2f", payableAmount));
+           String notifyChannel = (String) orderData.getOrDefault("notifyChannel", "EMAIL");
+        NotificationService notifier = notificationServices.get(notifyChannel);
+        if (notifier != null) {
+            notifier.send(orderData, payableAmount);
         }
-
         return true;
     }
 
